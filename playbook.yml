@@ -7,7 +7,11 @@
         name: aptitude
         force_apt_get: yes
 
-    -
+    #- name: Update APT package manager
+      #apt:
+        #update_cache: yes
+        #force_apt_get: yes
+        #cache_valid_time: 3600
 
     - name: Upgrade installed packages
       apt:
@@ -89,6 +93,24 @@
 
     - name: install Symfony
       command: chdir=/var/www/ git clone https://github.com/mariuslupo/app.git
+
+    - name: supprimer apache2.conf /etc
+      command: rm /etc/apache2/apache2.conf
+
+    - name: apache2.conf
+      command: cp /var/www/app/apache2.conf /etc/apache2/
+
+    - name: supprimer apache2.conf /var
+      command: rm /var/www/app/apache2.conf
+
+    - name: supprimer 000-default.conf /etc
+      command: rm /etc/apache2/sites-available/000-default.conf
+
+    - name: 000-default.conf
+      command: cp /var/www/app/000-default.conf /etc/apache2/sites-available
+
+    - name: supprimer 000-default.conf /var
+      command: rm /var/www/app/000-default.conf
 
     - name: composer install symfony
       become: false
