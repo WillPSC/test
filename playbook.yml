@@ -1,0 +1,110 @@
+---
+- hosts: local
+
+  tasks:
+    - name: Install aptitude package
+      apt:
+        name: aptitude
+        force_apt_get: yes
+
+    -
+
+    - name: Upgrade installed packages
+      apt:
+        upgrade: dist
+
+    - name: install git
+      apt:
+        name: git
+        state: latest
+
+    - name: Pré requi php8
+      apt: name={{ item }} state=latest
+      with_items:
+        - apt-transport-https
+        - lsb-release
+        - ca-certificates
+
+    - name: Préparation pour l'ajout de dépot packages.sury.org
+      shell: wget -O /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
+
+    - name: Ajout au fichier sources.ansible_distribution
+      shell: echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list
+
+    - name: Update and upgrade apt packages
+      become: true
+      apt:
+        upgrade: yes
+        update_cache: yes
+        cache_valid_time: 86400
+
+    - name: Install PHP8
+      apt:
+        name: php8.0
+        state: latest
+
+    - name: install packages
+      apt: name={{ item }} state=latest
+      with_items:
+        - apache2
+        - libapache2-mod-php8.0
+        - php8.0-fpm
+        - php8.0-mysql
+        - php8.0-curl
+        - curl
+        - php8.0-mbstring
+        - php8.0-xml
+        - php8.0-zip
+        - php8.0-cli
+        - php8.0-bcmath
+        - default-mysql-server
+
+    - name: download composer
+      get_url:
+        url: https://getcomposer.org/installer
+        dest: /tmp/installer
+      tags: composer
+
+    - name: install composer
+      shell: cat /tmp/installer | php -- --install-dir=/usr/local/bin
+      args:
+        creates: /usr/local/bin/composer
+      tags: composer
+
+    - name: renommer composer.phar en composer
+      shell: mv /usr/local/bin/composer.phar /usr/local/bin/composer
+      args:
+        creates: /usr/local/bin/composer
+      tags: composer
+
+    - name: rendre composer executable
+      file:
+        path: /usr/local/bin/composer
+        mode: a+x
+        state: file
+      tags: composer
+
+    - stat: path=/var/www/app/WIlliam/composer.lock
+      register: composer_file
+
+    - name: install Symfony
+      command: chdir=/var/www/ git clone https://github.com/mariuslupo/app.git
+
+    - name: composer install symfony
+      become: false
+      command: chdir=/var/www/app/WIlliam composer install
+      when: composer_file.stat.exists == False
+
+    - name: composer update Symfony
+      become: false
+      command: chdir=/var/www/app/WIlliam composer update
+      when: composer_file.stat.exists == True
+
+    - name: enabled mod_rewrite
+      apache2_module: name=rewrite state=present
+      notify:
+        - restart apache2
+
+  handlers:
+    - name: restart apache2
+      service: name=apache2 state=restarted
